@@ -18,12 +18,37 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [currentEmail, setCurrentEmail] = useState('');
+  const [setupEmail, setSetupEmail] = useState('');
+  const [settingUp, setSettingUp] = useState(false);
+
+  const checkSetup = useCallback(async () => {
+    try {
+      const res = await fetch('/api/setup');
+      if (res.ok) {
+        const data = await res.json() as { needsSetup: boolean; currentEmail: string | null };
+        setNeedsSetup(data.needsSetup);
+        setCurrentEmail(data.currentEmail || '');
+        setSetupEmail(data.currentEmail || '');
+      }
+    } catch (e: any) {
+      console.error('Setup check failed:', e);
+    }
+  }, []);
 
   const loadPages = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/pages');
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorData = await res.json() as { needsSetup?: boolean; error?: string };
+        if (errorData.needsSetup) {
+          setNeedsSetup(true);
+          return;
+        }
+        throw new Error(errorData.error || await res.text());
+      }
       setPages(await res.json());
     } catch (e: any) {
       setError(e.message);
@@ -32,7 +57,32 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  useEffect(() => { loadPages(); }, [loadPages]);
+  useEffect(() => { 
+    checkSetup();
+    loadPages(); 
+  }, [checkSetup, loadPages]);
+
+  const handleSetup = async () => {
+    if (!setupEmail) return;
+    setSettingUp(true);
+    try {
+      const res = await fetch('/api/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: setupEmail }),
+      });
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        throw new Error(data.error || 'Setup failed');
+      }
+      setNeedsSetup(false);
+      loadPages();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSettingUp(false);
+    }
+  };
 
   const handleDelete = async (slug: string) => {
     if (!confirm(`Delete page "/${slug}"? This cannot be undone.`)) return;
@@ -50,6 +100,64 @@ export default function AdminDashboard() {
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.slug.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (needsSetup) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
+          <h1 className="text-2xl font-black text-slate-900 font-outfit mb-2">
+            Welcome to FlareCMS
+          </h1>
+          <p className="text-slate-600 mb-6">
+            Let's set up your admin account. Enter the email address that should have access to this CMS.
+          </p>
+          
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="setup-email" className="block text-sm font-semibold text-slate-700 mb-2">
+                Admin Email Address
+              </label>
+              <input
+                id="setup-email"
+                type="email"
+                value={setupEmail}
+                onChange={(e) => setSetupEmail(e.target.value)}
+                placeholder="admin@example.com"
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+              />
+              {currentEmail && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Currently authenticated as: <span className="font-mono">{currentEmail}</span>
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={handleSetup}
+              disabled={settingUp || !setupEmail}
+              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-lg transition-colors shadow-sm"
+            >
+              {settingUp ? 'Setting up…' : 'Complete Setup'}
+            </button>
+          </div>
+
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> After setup, you'll need to configure Cloudflare Access in your Cloudflare dashboard 
+              to protect the <code className="bg-blue-100 px-1 rounded">/admin</code> path with "One-time PIN" authentication 
+              for this email address.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto">

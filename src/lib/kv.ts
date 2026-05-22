@@ -34,3 +34,13 @@ export async function savePage(kv: KVNamespace, page: CmsPage): Promise<void> {
 export async function deletePage(kv: KVNamespace, slug: string): Promise<void> {
   await kv.delete(`${PREFIX}${slug}`);
 }
+
+const ROOT_USER_KEY = 'root:user:email';
+
+export async function getRootUserEmail(kv: KVNamespace): Promise<string | null> {
+  return await kv.get(ROOT_USER_KEY);
+}
+
+export async function setRootUserEmail(kv: KVNamespace, email: string): Promise<void> {
+  await kv.put(ROOT_USER_KEY, email);
+}

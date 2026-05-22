@@ -1,3 +1,5 @@
+import { getRootUserEmail } from './kv';
+
 /**
  * Cloudflare Access injects `cf-access-authenticated-user-email` on every
  * request that passes through an Access policy. No manual setup needed —
@@ -26,12 +28,27 @@ export function getAuth(request: Request): AuthResult {
   };
 }
 
-export function requireAuth(request: Request): Response | null {
-  const { authenticated } = getAuth(request);
+export async function requireAuth(request: Request, kv: KVNamespace): Promise<Response | null> {
+  const { authenticated, email } = getAuth(request);
   if (!authenticated) {
     return new Response(
       JSON.stringify({ error: 'Cloudflare Access authentication required' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const rootUserEmail = await getRootUserEmail(kv);
+  if (!rootUserEmail) {
+    return new Response(
+      JSON.stringify({ error: 'No root user configured', needsSetup: true }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  if (email !== rootUserEmail) {
+    return new Response(
+      JSON.stringify({ error: 'Access denied: Invalid email' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
     );
   }
   return null;

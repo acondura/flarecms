@@ -6,11 +6,11 @@ export const runtime = 'edge';
 
 /** GET /api/pages — list all pages (admin only) */
 export async function GET(request: Request) {
-  const deny = requireAuth(request);
-  if (deny) return deny;
-
   try {
     const { env } = getRequestContext() as { env: CloudflareEnv };
+    const deny = await requireAuth(request, env.CMS_KV);
+    if (deny) return deny;
+
     const pages = await listPages(env.CMS_KV);
     return Response.json(pages);
   } catch (e: any) {

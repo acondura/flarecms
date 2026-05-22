@@ -25,15 +25,15 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const deny = requireAuth(request);
-  if (deny) return deny;
-
   const { slug } = await params;
   try {
+    const { env } = getRequestContext() as { env: CloudflareEnv };
+    const deny = await requireAuth(request, env.CMS_KV);
+    if (deny) return deny;
+
     const body = (await request.json()) as Record<string, any>;
     // Ensure slug matches route
     const page = { ...body, slug } as any;
-    const { env } = getRequestContext() as { env: CloudflareEnv };
     await savePage(env.CMS_KV, page);
     return Response.json({ success: true, page });
   } catch (e: any) {
@@ -46,12 +46,12 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const deny = requireAuth(request);
-  if (deny) return deny;
-
   const { slug } = await params;
   try {
     const { env } = getRequestContext() as { env: CloudflareEnv };
+    const deny = await requireAuth(request, env.CMS_KV);
+    if (deny) return deny;
+
     await deletePage(env.CMS_KV, slug);
     return Response.json({ success: true });
   } catch (e: any) {
