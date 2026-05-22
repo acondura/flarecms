@@ -27,29 +27,12 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
   const [title, setTitle]     = useState(initialPage?.title ?? '');
   const [excerpt, setExcerpt] = useState(initialPage?.excerpt ?? '');
   const [content, setContent] = useState(initialPage?.content ?? '');
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState('');
+
   const [saving, setSaving]   = useState(false);
   const [status, setStatus]   = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Parse markdown client-side for live preview
-  useEffect(() => {
-    if (!showPreview) return;
-    let active = true;
-    const parse = async () => {
-      try {
-        const html = await marked(content || '');
-        if (active) setPreviewHtml(html);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    parse();
-    return () => {
-      active = false;
-    };
-  }, [content, showPreview]);
+
 
   // Auto-generate slug from title for new pages
   useEffect(() => {
@@ -129,13 +112,7 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
               <AlertCircle size={15} /> {errorMsg}
             </span>
           )}
-          <button
-            onClick={() => setShowPreview((v) => !v)}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            {showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
-            {showPreview ? 'Hide preview' : 'Preview'}
-          </button>
+
           <button
             id="save-page-btn"
             onClick={handleSave}
@@ -216,7 +193,7 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
         </aside>
 
         {/* Editor + Preview */}
-        <div className={`col-span-9 ${showPreview ? 'grid grid-cols-2 gap-4' : ''}`}>
+        <div className="col-span-9">
           <div className="flex flex-col">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Content <span className="text-red-400">*</span>{' '}
@@ -231,17 +208,7 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
             />
           </div>
 
-          {showPreview && (
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Preview</p>
-              <div
-                className="min-h-[600px] px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl overflow-y-auto prose prose-slate prose-sm max-w-none"
-                dangerouslySetInnerHTML={{
-                  __html: previewHtml || '<em class="text-slate-400">Nothing to preview yet…</em>',
-                }}
-              />
-            </div>
-          )}
+
         </div>
       </div>
     </div>
