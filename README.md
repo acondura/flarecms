@@ -56,6 +56,17 @@ npm run dev          # standard Next.js dev server (KV calls are skipped gracefu
 In **Cloudflare Access → Applications**, create an application that protects `your-domain.pages.dev/admin*`.
 Cloudflare automatically injects the `cf-access-authenticated-user-email` header — no code changes needed.
 
+Important notes for automatic setup
+
+- Bind your KV namespace as `CMS_KV` in Cloudflare Pages (Functions → KV namespace bindings). If this binding is missing the app will return a clear error indicating the KV binding is required.
+
+- To enable FlareCMS to automatically provision a Cloudflare Access Application and Policy for `/admin`, add these environment variables to your Pages project (Settings → Environment variables):
+
+  - `CF_ACC_ID` = <your Cloudflare account id>
+  - `CF_TOKEN` = <API token with Access: Apps & Policies write permissions>
+
+When those variables are present, FlareCMS will call the Cloudflare API during initial setup to create/update a self-hosted Access application for `your-origin/pages.dev/admin` and a policy that allows only the configured admin email.
+
 ### Build locally for CF
 
 ```bash
