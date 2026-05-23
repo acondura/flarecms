@@ -149,9 +149,10 @@ export default function AdminDashboard() {
 
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Note:</strong> After setup, you'll need to configure Cloudflare Access in your Cloudflare dashboard 
-              to protect the <code className="bg-blue-100 px-1 rounded">/admin</code> path with "One-time PIN" authentication 
-              for this email address.
+              <strong>Note:</strong> If you deploy on Cloudflare and provide the <code className="bg-blue-100 px-1 rounded">CF_ACC_ID</code> and 
+              <code className="bg-blue-100 px-1 rounded">CF_TOKEN</code> bindings, FlareCMS will automatically configure Cloudflare Access 
+              to protect the <code className="bg-blue-100 px-1 rounded">/admin</code> path for this email. Otherwise, you can configure an 
+              Access policy for <code className="bg-blue-100 px-1 rounded">/admin</code> manually in your Cloudflare dashboard.
             </p>
           </div>
         </div>

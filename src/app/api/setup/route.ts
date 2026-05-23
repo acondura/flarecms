@@ -1,6 +1,7 @@
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { getRootUserEmail, setRootUserEmail } from '@/lib/kv';
 import { getAuth } from '@/lib/auth';
+import { setupCloudflareAccess } from '@/lib/cloudflare-access';
 
 export const runtime = 'edge';
 
@@ -55,10 +56,38 @@ export async function POST(request: Request) {
     }
 
     await setRootUserEmail(env.CMS_KV, emailToSet);
-    
-    return Response.json({ 
-      success: true, 
-      rootUserEmail: emailToSet 
+
+    // Automatically configure Cloudflare Access for the /admin path if
+    // API credentials are available. This will create (or update) a
+    // self-hosted application scoped to `${origin}/admin` and a policy
+    // that only allows the configured root user email.
+    let accessConfigured = false;
+    let accessError: string | null = null;
+
+    try {
+      if ((env as any).CF_ACC_ID && (env as any).CF_TOKEN) {
+        const origin = new URL(request.url).origin;
+        const result = await setupCloudflareAccess(
+          (env as any).CF_ACC_ID,
+          (env as any).CF_TOKEN,
+          origin,
+          emailToSet
+        );
+
+        accessConfigured = result.success;
+        accessError = result.error ?? null;
+      } else {
+        accessError = 'CF_ACC_ID or CF_TOKEN not configured; Cloudflare Access not set up automatically.';
+      }
+    } catch (err: any) {
+      accessError = err?.message ?? 'Unknown Cloudflare Access configuration error';
+    }
+
+    return Response.json({
+      success: true,
+      rootUserEmail: emailToSet,
+      accessConfigured,
+      accessError,
     });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: 500 });
