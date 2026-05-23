@@ -34,18 +34,43 @@ export async function POST(
 
     const body = (await request.json()) as Record<string, any>;
     // If slug changed (when editing via admin UI we will send the new slug in body)
-    const incomingSlug = body.slug as string | undefined;
-    const page = { ...body, slug } as any;
+    let incomingSlug = (body.slug as string | undefined) ?? undefined;
 
-    // If the route slug differs from the page.slug, it means the page was moved from
-    // the old slug (route param) to a new slug (body.slug). Record a 301 redirect
-    // from old -> new in KV so the website route can follow it.
+    // Server-side normalize/sanitize incoming slug to a canonical format so we
+    // don't persist malformed or truncated values coming from the client.
+    const normalize = (s: string) =>
+      s
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+
+    if (incomingSlug) incomingSlug = normalize(incomingSlug);
+
+    // Determine the target slug we should save under: prefer incoming (new) slug
+    // when provided, otherwise use the route param (for creation).
+    const targetSlug = incomingSlug && incomingSlug.length > 0 ? incomingSlug : slug;
+
+    const page = { ...body, slug: targetSlug } as any;
+
+    // If the route slug differs from the target slug, record a redirect and
+    // move the page key in KV (save new, delete old).
     if (incomingSlug && incomingSlug !== slug) {
-      // save redirect from old (route) to new (incoming)
-      await saveRedirect(env.CMS_KV, slug, incomingSlug);
-    }
+      // save the page under the new slug
+      await savePage(env.CMS_KV, page);
+      // Verify save succeeded (helps surface KV errors instead of silently
+      // creating a redirect to a non-existent page).
+      const saved = await getPage(env.CMS_KV, targetSlug);
+      if (!saved) throw new Error('Failed to persist page under new slug');
 
-    await savePage(env.CMS_KV, page);
+      // save redirect from old -> new (ensure stored value is normalized)
+      await saveRedirect(env.CMS_KV, slug, incomingSlug);
+      // delete the old page key after redirect is in place
+      await deletePage(env.CMS_KV, slug);
+    } else {
+      // No move — just save/update at the target slug
+      await savePage(env.CMS_KV, page);
+    }
     return Response.json({ success: true, page });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: 500 });
