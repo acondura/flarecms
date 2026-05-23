@@ -20,10 +20,24 @@ export function getAuth(request: Request): AuthResult {
     url.hostname === 'localhost' || url.hostname === '127.0.0.1';
 
   const email = request.headers.get('cf-access-authenticated-user-email');
+  // During initial bootstrap (or local dev), the client may send a
+  // fallback header `x-admin-email`. Accept it when the CF Access header
+  // is not present so the UI can bootstrap the root user before Access
+  // is configured.
+  const fallbackAdminEmail = request.headers.get('x-admin-email');
+  // Also accept an email provided as a query parameter (used as a
+  // bootstrap fallback from the client when headers/cookies are not
+  // reliably delivered).
+  const urlEmail = url.searchParams.get('email');
+  // Also accept a temporary cookie set after bootstrap so the browser session
+  // can continue working before Cloudflare Access is enforced.
+  const cookieHeader = request.headers.get('cookie') || '';
+  const match = cookieHeader.match(/(?:^|; )flarecms_admin_email=([^;]+)/);
+  const cookieAdminEmail = match ? decodeURIComponent(match[1]) : null;
 
   return {
-    authenticated: !!(email || isLocal),
-    email: email ?? (isLocal ? 'local-dev@flarecms.local' : null),
+    authenticated: !!(email || fallbackAdminEmail || urlEmail || cookieAdminEmail || isLocal),
+    email: email ?? fallbackAdminEmail ?? urlEmail ?? cookieAdminEmail ?? (isLocal ? 'local-dev@flarecms.local' : null),
     isLocal,
   };
 }

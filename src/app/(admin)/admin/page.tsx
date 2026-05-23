@@ -22,10 +22,11 @@ export default function AdminDashboard() {
   const [currentEmail, setCurrentEmail] = useState('');
   const [setupEmail, setSetupEmail] = useState('');
   const [settingUp, setSettingUp] = useState(false);
+  const [accessLoginUrl, setAccessLoginUrl] = useState<string | null>(null);
 
   const checkSetup = useCallback(async () => {
     try {
-      const res = await fetch('/api/setup');
+      const res = await fetch('/api/setup', { credentials: 'same-origin' });
       if (res.ok) {
         const data = await res.json() as { needsSetup: boolean; currentEmail: string | null };
         setNeedsSetup(data.needsSetup);
@@ -37,10 +38,17 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  const loadPages = useCallback(async () => {
+  const loadPages = useCallback(async (emailFallback?: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/pages');
+      // If we have a client-provided admin email (bootstrap fallback), send it
+      // as x-admin-email so the server can accept the request before Cloudflare
+      // Access is enabled for this origin.
+      const headers: Record<string, string> = {};
+      const fallback = emailFallback || currentEmail;
+      if (fallback) headers['x-admin-email'] = fallback;
+
+      const res = await fetch('/api/pages', { headers, credentials: 'same-origin' });
       if (!res.ok) {
         const errorData = await res.json() as { needsSetup?: boolean; error?: string };
         if (errorData.needsSetup) {
@@ -55,7 +63,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentEmail]);
 
   useEffect(() => { 
     checkSetup();
@@ -72,13 +80,29 @@ export default function AdminDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-email': setupEmail },
         body: JSON.stringify({ email: setupEmail }),
+        credentials: 'same-origin',
       });
+      const json = (await res.json()) as Record<string, any>;
       if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error || 'Setup failed');
+        throw new Error((json && json.error) || 'Setup failed');
       }
+
+      // If Access was provisioned automatically, Cloudflare will intercept
+      // requests until the admin signs in. The setup endpoint returns a
+      // `loginUrl` when provisioning succeeds — redirect the user there so
+      // they can complete the Cloudflare Access sign-in and return to /admin.
+      if (json.accessConfigured && json.loginUrl) {
+        setAccessLoginUrl(json.loginUrl);
+        // redirect the browser to Cloudflare Access login
+        window.location.href = json.loginUrl;
+        return;
+      }
+
+      // Otherwise proceed using the fallback header/cookie so the session
+      // can continue until Cloudflare Access is enabled.
       setNeedsSetup(false);
-      loadPages();
+      setCurrentEmail(setupEmail);
+      await loadPages(setupEmail);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -151,10 +175,21 @@ export default function AdminDashboard() {
 
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> If you deploy on Cloudflare and add the <code className="bg-blue-100 px-1 rounded">CF_ACC_ID</code> and
-          <code className="bg-blue-100 px-1 rounded">CF_TOKEN</code> environment variables, FlareCMS will attempt to automatically
-          configure Cloudflare Access to protect the <code className="bg-blue-100 px-1 rounded">/admin</code> path for this email.
-          Otherwise you can configure Access manually in the Cloudflare dashboard.
+          <strong>Note:</strong>
+        </p>
+        <ul className="mt-2 text-sm list-disc list-inside text-blue-800">
+          <li>
+            Bind your KV namespace as <code className="bg-blue-100 px-1 rounded">CMS_KV</code> in Cloudflare Pages (Functions → KV namespace bindings). If this binding is missing the app will return a clear error indicating the KV binding is required.
+          </li>
+          <li className="mt-2">
+            To enable automatic provisioning of Cloudflare Access for <code className="bg-blue-100 px-1 rounded">/admin</code>, add these environment variables to your Pages project:
+            <div className="mt-1">
+              <code className="bg-blue-100 px-1 rounded">CF_ACC_ID</code> and <code className="bg-blue-100 px-1 rounded">CF_TOKEN</code>
+            </div>
+          </li>
+        </ul>
+        <p className="mt-3 text-sm text-blue-800">
+          When those are present, FlareCMS will attempt to create/update an Access Application and Policy that allows only the configured admin email.
         </p>
       </div>
         </div>

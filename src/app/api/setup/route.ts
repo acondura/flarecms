@@ -38,13 +38,18 @@ export async function POST(request: Request) {
 
     const { email: headerEmail } = getAuth(request);
 
+    // Capture headers for debugging and fallback checks
+    const headersObj: Record<string, string> = {};
+    for (const [k, v] of request.headers) headersObj[k] = v ?? '';
+
     // Parse email from multiple fallbacks (body JSON, query, header)
     let bodyEmail: string | undefined;
+    let bodyText = '';
     try {
-      const text = await request.text();
-      if (text) {
+      bodyText = await request.text();
+      if (bodyText) {
         try {
-          const body = JSON.parse(text) as { email?: string };
+          const body = JSON.parse(bodyText) as { email?: string };
           bodyEmail = body?.email;
         } catch (e) {
           // not JSON — ignore
@@ -60,7 +65,7 @@ export async function POST(request: Request) {
 
     if (!emailToSet) {
       return Response.json(
-        { error: 'No authenticated email found' },
+        { error: 'No authenticated email found', headers: headersObj, bodyText },
         { status: 401 }
       );
     }
@@ -74,6 +79,12 @@ export async function POST(request: Request) {
     }
 
     await setRootUserEmail(env.CMS_KV, emailToSet);
+
+    // Set a short-lived cookie via response so the browser session can
+    // continue to make authenticated requests during bootstrap before
+    // Cloudflare Access is active. Cookie is not HttpOnly so client JS
+    // can remove it later; expires in 30 minutes.
+    const cookie = `flarecms_admin_email=${encodeURIComponent(emailToSet)}; Path=/; Max-Age=${60 * 30}`;
 
     // Automatically configure Cloudflare Access for the /admin path if
     // API credentials are available. This will create (or update) a
@@ -101,11 +112,25 @@ export async function POST(request: Request) {
       accessError = err?.message ?? 'Unknown Cloudflare Access configuration error';
     }
 
-    return Response.json({
+    const origin = new URL(request.url).origin;
+    const loginUrl = `${origin}/cdn-cgi/access/login?redirect=${encodeURIComponent(origin + '/admin')}`;
+
+    const bodyObj: any = {
       success: true,
       rootUserEmail: emailToSet,
       accessConfigured,
       accessError,
+    };
+    if (accessConfigured) bodyObj.loginUrl = loginUrl;
+
+    const body = JSON.stringify(bodyObj);
+
+    return new Response(body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': cookie,
+      },
     });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: 500 });
