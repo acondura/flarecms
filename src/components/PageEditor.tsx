@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Save, Eye, EyeOff, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useEffect as useClientEffect } from 'react';
 import { marked } from 'marked';
 
 interface CmsPage {
@@ -32,6 +33,24 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
   const [saving, setSaving]   = useState(false);
   const [status, setStatus]   = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Redirect list state
+  const [redirects, setRedirects] = useState<string[]>([]);
+
+  useClientEffect(() => {
+    let mounted = true;
+    async function loadRedirects() {
+      if (!initialPage) return;
+      try {
+        const res = await fetch(`/api/pages/${initialPage.slug}/redirects`, { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const json = (await res.json()) as { redirects?: string[] };
+        if (mounted) setRedirects(json.redirects || []);
+      } catch {}
+    }
+    loadRedirects();
+    return () => { mounted = false; };
+  }, [initialPage]);
 
 
 
@@ -104,8 +123,9 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
           >
             <ArrowLeft size={14} /> Back
           </button>
-          <h1 className="text-2xl font-black text-slate-900 font-outfit">
-            {isNew ? 'New page' : `Edit: ${initialPage.title}`}
+          <h1 className="text-2xl font-black text-slate-900 font-outfit break-words">
+            {/* Title should be clickable and above content */}
+            <a href={`/${slug}`} className="hover:underline">{title}</a>
           </h1>
         </div>
         <div className="flex items-center gap-3">
@@ -133,72 +153,7 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
       </div>
 
       <div className="grid grid-cols-12 gap-6">
-        {/* Sidebar */}
-        <aside className="col-span-3 space-y-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-            <div>
-              <label htmlFor="page-title" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Title <span className="text-red-400">*</span>
-              </label>
-              <input
-                id="page-title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="My awesome page"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
-              />
-            </div>
-            <div>
-              <label htmlFor="page-slug" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Slug <span className="text-red-400">*</span>
-              </label>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-400 text-sm">/</span>
-                <input
-                  id="page-slug"
-                  type="text"
-                  value={slug}
-                  onChange={(e) =>
-                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
-                  }
-                  placeholder="my-awesome-page"
-                  className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all disabled:bg-slate-50 disabled:text-slate-400 font-mono"
-                />
-              </div>
-              {!isNew && (
-                <p className="mt-1 text-xs text-slate-400">Changing the title will update the slug if you haven't edited it — changing the slug will create a 301 redirect from the old URL.</p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="page-excerpt" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Excerpt
-              </label>
-              <textarea
-                id="page-excerpt"
-                rows={3}
-                value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
-                placeholder="Short description shown on the home page…"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all resize-none"
-              />
-            </div>
-          </div>
-
-          {!isNew && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Info</p>
-              <p className="text-xs text-slate-500">
-                Published: {new Date(initialPage.publishedAt).toLocaleString()}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Updated: {new Date(initialPage.updatedAt).toLocaleString()}
-              </p>
-            </div>
-          )}
-        </aside>
-
-        {/* Editor + Preview */}
+        {/* Editor */}
         <div className="col-span-9">
           <div className="flex flex-col">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -213,9 +168,72 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
               placeholder="# Hello World&#10;&#10;Write your page content here in **Markdown**…"
             />
           </div>
-
-
         </div>
+
+        {/* Right Sidebar */}
+        <aside className="col-span-3 space-y-5">
+          {/* Info (top) */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Info</p>
+            <p className="text-xs text-slate-500">
+              Published: {new Date(initialPage?.publishedAt ?? Date.now()).toLocaleString()}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Updated: {new Date(initialPage?.updatedAt ?? Date.now()).toLocaleString()}
+            </p>
+          </div>
+
+          {/* URL (slug) */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <label htmlFor="page-slug" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              URL (slug) <span className="text-red-400">*</span>
+            </label>
+            <div className="flex items-center gap-1">
+              <span className="text-slate-400 text-sm">/</span>
+              <input
+                id="page-slug"
+                type="text"
+                value={slug}
+                onChange={(e) =>
+                  setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
+                }
+                placeholder="my-awesome-page"
+                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all disabled:bg-slate-50 disabled:text-slate-400 font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Summary (excerpt) */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <label htmlFor="page-excerpt" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Summary
+            </label>
+            <textarea
+              id="page-excerpt"
+              rows={3}
+              value={excerpt}
+              onChange={(e) => setExcerpt(e.target.value)}
+              placeholder="Short description shown on the home page…"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all resize-none"
+            />
+          </div>
+
+          {/* Redirects list */}
+          {!isNew && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Redirects</p>
+              {redirects.length === 0 ? (
+                <p className="text-xs text-slate-500">No redirects</p>
+              ) : (
+                <ul className="text-xs text-slate-700 list-disc list-inside">
+                  {redirects.map((r) => (
+                    <li key={r}>/{r}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );

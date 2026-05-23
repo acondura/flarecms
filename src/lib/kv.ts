@@ -40,6 +40,19 @@ export async function getRedirect(kv: KVNamespace, from: string): Promise<string
   return await kv.get(`${REDIRECT_PREFIX}${from}`);
 }
 
+export async function listRedirectsTo(kv: KVNamespace, to: string): Promise<string[]> {
+  const list = await kv.list({ prefix: REDIRECT_PREFIX });
+  const matches: string[] = [];
+  for (const k of list.keys) {
+    const val = await kv.get(k.name);
+    if (val === to) {
+      // key.name is like 'redirect:old-slug' — strip prefix
+      matches.push(k.name.replace(REDIRECT_PREFIX, ''));
+    }
+  }
+  return matches;
+}
+
 export async function deleteRedirect(kv: KVNamespace, from: string): Promise<void> {
   await kv.delete(`${REDIRECT_PREFIX}${from}`);
 }

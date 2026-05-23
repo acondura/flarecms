@@ -269,8 +269,13 @@ export default function AdminDashboard() {
             <tbody className="divide-y divide-slate-100">
               {filtered.map((page) => (
                 <tr key={page.slug} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-4 font-medium text-slate-900">
-                    {page.title}
+                  <td className="px-5 py-4 font-medium text-slate-900 break-words">
+                    <Link
+                      href={`/admin/edit/${page.slug}`}
+                      className="text-slate-900 hover:underline inline-block"
+                    >
+                      {page.title}
+                    </Link>
                   </td>
                   <td className="px-5 py-4 text-slate-500 font-mono text-xs">
                     /{page.slug}
