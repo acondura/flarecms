@@ -76,7 +76,7 @@ export default function AdminDashboard() {
     try {
       // Include x-admin-email header as a fallback for environments where
       // the cf-access header is not present during bootstrap.
-      const res = await fetch('/api/setup', {
+      const res = await fetch('/api/setup/provision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-email': setupEmail },
         body: JSON.stringify({ email: setupEmail }),
