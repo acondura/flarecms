@@ -36,16 +36,34 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email } = getAuth(request);
-    if (!email) {
+    const { email: headerEmail } = getAuth(request);
+
+    // Parse email from multiple fallbacks (body JSON, query, header)
+    let bodyEmail: string | undefined;
+    try {
+      const text = await request.text();
+      if (text) {
+        try {
+          const body = JSON.parse(text) as { email?: string };
+          bodyEmail = body?.email;
+        } catch (e) {
+          // not JSON — ignore
+        }
+      }
+    } catch (e) {
+      // ignore read errors
+    }
+
+    const urlEmail = new URL(request.url).searchParams.get('email') || undefined;
+    const headerFallback = request.headers.get('x-admin-email') || undefined;
+    const emailToSet = bodyEmail || urlEmail || headerFallback || headerEmail;
+
+    if (!emailToSet) {
       return Response.json(
         { error: 'No authenticated email found' },
         { status: 401 }
       );
     }
-
-    const body = await request.json() as { email?: string };
-    const emailToSet = body.email || email;
 
     // Validate email format
     if (!emailToSet || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToSet)) {

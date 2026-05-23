@@ -28,20 +28,30 @@ export function getAuth(request: Request): AuthResult {
   };
 }
 
-export async function requireAuth(request: Request, kv: KVNamespace): Promise<Response | null> {
-  const { authenticated, email } = getAuth(request);
-  if (!authenticated) {
+export async function requireAuth(request: Request, kv: KVNamespace | undefined): Promise<Response | null> {
+  // Helpful error if KV binding is missing
+  if (!kv || typeof (kv as any).get !== 'function') {
     return new Response(
-      JSON.stringify({ error: 'Cloudflare Access authentication required' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'CMS_KV binding missing. Please bind KV in Cloudflare Pages → Functions → KV namespace bindings.' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 
+  // First check whether a root user exists; if not, surface needsSetup for UI
   const rootUserEmail = await getRootUserEmail(kv);
   if (!rootUserEmail) {
     return new Response(
       JSON.stringify({ error: 'No root user configured', needsSetup: true }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Then enforce Cloudflare Access (or local dev bypass)
+  const { authenticated, email } = getAuth(request);
+  if (!authenticated) {
+    return new Response(
+      JSON.stringify({ error: 'Cloudflare Access authentication required' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
     );
   }
 

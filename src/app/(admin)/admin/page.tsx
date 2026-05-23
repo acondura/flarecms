@@ -66,9 +66,11 @@ export default function AdminDashboard() {
     if (!setupEmail) return;
     setSettingUp(true);
     try {
+      // Include x-admin-email header as a fallback for environments where
+      // the cf-access header is not present during bootstrap.
       const res = await fetch('/api/setup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-email': setupEmail },
         body: JSON.stringify({ email: setupEmail }),
       });
       if (!res.ok) {
@@ -147,13 +149,14 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> After setup, you'll need to configure Cloudflare Access in your Cloudflare dashboard 
-              to protect the <code className="bg-blue-100 px-1 rounded">/admin</code> path with "One-time PIN" authentication 
-              for this email address.
-            </p>
-          </div>
+      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>Note:</strong> If you deploy on Cloudflare and add the <code className="bg-blue-100 px-1 rounded">CF_ACC_ID</code> and
+          <code className="bg-blue-100 px-1 rounded">CF_TOKEN</code> environment variables, FlareCMS will attempt to automatically
+          configure Cloudflare Access to protect the <code className="bg-blue-100 px-1 rounded">/admin</code> path for this email.
+          Otherwise you can configure Access manually in the Cloudflare dashboard.
+        </p>
+      </div>
         </div>
       </div>
     );

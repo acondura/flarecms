@@ -45,8 +45,10 @@ export async function setupCloudflareAccess(
     }
 
     const appsData = await appsResponse.json() as { result: AccessApplication[] };
+    // Normalize domain input: accept origin like https://example.pages.dev or example.pages.dev
+    const originHost = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
     let appId = appsData.result.find(
-      (app) => app.domain === `${domain}/admin` || app.name === 'FlareCMS Admin'
+      (app) => app.domain === `${originHost}/admin` || app.name === 'FlareCMS Admin'
     )?.id;
 
     // Step 2: Create or update application
@@ -56,9 +58,9 @@ export async function setupCloudflareAccess(
         {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            name: 'FlareCMS Admin',
-            domain: `${domain}/admin`,
+            body: JSON.stringify({
+              name: 'FlareCMS Admin',
+              domain: `${originHost}/admin`,
             type: 'self_hosted',
             session_duration: '24h',
             auto_redirect_to_identity: false,
