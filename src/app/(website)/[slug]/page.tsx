@@ -34,10 +34,19 @@ export default async function PageView({
   let excerpt = '';
   let publishedAt = '';
 
-  try {
+    try {
     const { env } = getRequestContext() as { env: CloudflareEnv };
     const page = await getPage(env.CMS_KV, slug);
-    if (!page) notFound();
+    // If page not found, check redirects and 301 if present
+    if (!page) {
+      const { getRedirect } = await import('@/lib/kv');
+      const to = await getRedirect(env.CMS_KV, slug);
+      if (to) {
+        // perform a permanent redirect to the new slug
+        return new Response(null, { status: 301, headers: { Location: `/${to}` } }) as any;
+      }
+      notFound();
+    }
     title = page.title;
     excerpt = page.excerpt;
     publishedAt = page.publishedAt;

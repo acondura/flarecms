@@ -24,6 +24,7 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
   const isNew = !initialPage;
 
   const [slug, setSlug]       = useState(initialPage?.slug ?? '');
+  const [originalSlug] = useState(initialPage?.slug ?? '');
   const [title, setTitle]     = useState(initialPage?.title ?? '');
   const [excerpt, setExcerpt] = useState(initialPage?.excerpt ?? '');
   const [content, setContent] = useState(initialPage?.content ?? '');
@@ -34,9 +35,13 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
 
 
 
-  // Auto-generate slug from title for new pages
+  // Auto-generate slug from title for new pages. For existing pages, if the
+  // slug hasn't been edited (it still equals originalSlug) we'll also update
+  // the slug when the title changes — this enables renaming a page's URL when
+  // updating the title. If the user manually edits the slug, we stop auto-updating.
   useEffect(() => {
-    if (!isNew) return;
+    const shouldAuto = isNew || slug === originalSlug;
+    if (!shouldAuto) return;
     setSlug(
       title
         .toLowerCase()
@@ -44,7 +49,7 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
     );
-  }, [title, isNew]);
+  }, [title, isNew, originalSlug, slug]);
 
   const handleSave = useCallback(async () => {
     if (!slug || !title || !content) {
@@ -66,7 +71,9 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
     };
 
     try {
-      const res = await fetch(`/api/pages/${slug}`, {
+      // When saving, send the page to the API using the originalSlug in the route
+      // (so server can detect moves) but include the new slug in the body.
+      const res = await fetch(`/api/pages/${originalSlug || slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -155,13 +162,12 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
                   onChange={(e) =>
                     setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
                   }
-                  disabled={!isNew}
                   placeholder="my-awesome-page"
                   className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all disabled:bg-slate-50 disabled:text-slate-400 font-mono"
                 />
               </div>
               {!isNew && (
-                <p className="mt-1 text-xs text-slate-400">Slug cannot be changed after creation.</p>
+                <p className="mt-1 text-xs text-slate-400">Changing the title will update the slug if you haven't edited it — changing the slug will create a 301 redirect from the old URL.</p>
               )}
             </div>
             <div>

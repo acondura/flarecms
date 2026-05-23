@@ -8,6 +8,7 @@ export interface CmsPage {
 }
 
 const PREFIX = 'page:';
+const REDIRECT_PREFIX = 'redirect:';
 
 export async function listPages(kv: KVNamespace): Promise<CmsPage[]> {
   const list = await kv.list({ prefix: PREFIX });
@@ -29,6 +30,18 @@ export async function getPage(kv: KVNamespace, slug: string): Promise<CmsPage | 
 
 export async function savePage(kv: KVNamespace, page: CmsPage): Promise<void> {
   await kv.put(`${PREFIX}${page.slug}`, JSON.stringify(page));
+}
+
+export async function saveRedirect(kv: KVNamespace, from: string, to: string): Promise<void> {
+  await kv.put(`${REDIRECT_PREFIX}${from}`, to);
+}
+
+export async function getRedirect(kv: KVNamespace, from: string): Promise<string | null> {
+  return await kv.get(`${REDIRECT_PREFIX}${from}`);
+}
+
+export async function deleteRedirect(kv: KVNamespace, from: string): Promise<void> {
+  await kv.delete(`${REDIRECT_PREFIX}${from}`);
 }
 
 export async function deletePage(kv: KVNamespace, slug: string): Promise<void> {

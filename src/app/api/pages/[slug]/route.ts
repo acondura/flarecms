@@ -1,5 +1,6 @@
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { getPage, savePage, deletePage } from '@/lib/kv';
+import { saveRedirect } from '@/lib/kv';
 import { requireAuth } from '@/lib/auth';
 
 export const runtime = 'edge';
@@ -32,8 +33,18 @@ export async function POST(
     if (deny) return deny;
 
     const body = (await request.json()) as Record<string, any>;
-    // Ensure slug matches route
+    // If slug changed (when editing via admin UI we will send the new slug in body)
+    const incomingSlug = body.slug as string | undefined;
     const page = { ...body, slug } as any;
+
+    // If the route slug differs from the page.slug, it means the page was moved from
+    // the old slug (route param) to a new slug (body.slug). Record a 301 redirect
+    // from old -> new in KV so the website route can follow it.
+    if (incomingSlug && incomingSlug !== slug) {
+      // save redirect from old (route) to new (incoming)
+      await saveRedirect(env.CMS_KV, slug, incomingSlug);
+    }
+
     await savePage(env.CMS_KV, page);
     return Response.json({ success: true, page });
   } catch (e: any) {
