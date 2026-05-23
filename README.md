@@ -46,11 +46,10 @@ npm run dev          # standard Next.js dev server (KV calls are skipped gracefu
 ### Cloudflare Pages deployment
 
 1. Create a KV namespace in your Cloudflare dashboard → **Workers & Pages → KV**.
-2. Replace `REPLACE_WITH_YOUR_KV_NAMESPACE_ID` in `wrangler.jsonc` with the namespace ID.
-3. In Cloudflare Pages → **Settings → Functions → KV namespace bindings**, bind `CMS_KV` to that namespace.
-4. Set build command: `npx @cloudflare/next-on-pages`
-5. Set output directory: `.vercel/output/static`
-6. Add compatibility flag: `nodejs_compat`
+2. In Cloudflare Pages → **Settings → Functions → KV namespace bindings**, bind `CMS_KV` to that namespace.
+3. Set build command: `npx @cloudflare/next-on-pages`
+4. Set output directory: `.vercel/output/static`
+5. Add compatibility flag: `nodejs_compat`
 
 ### Cloudflare Access setup
 
