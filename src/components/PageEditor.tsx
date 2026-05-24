@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, Eye, EyeOff, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, Eye, EyeOff, ArrowLeft, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { useEffect as useClientEffect } from 'react';
 import { marked } from 'marked';
 
@@ -156,6 +156,19 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
         {/* Editor */}
         <div className="col-span-9">
           <div className="flex flex-col">
+            {/* Title input above Content */}
+            <div className="mb-4">
+              <label htmlFor="page-title" className="block text-sm font-bold text-slate-500 mb-2">Title <span className="text-red-400">*</span></label>
+              <input
+                id="page-title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="My awesome page"
+                className="w-full px-4 py-3 text-lg border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+              />
+            </div>
+
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Content <span className="text-red-400">*</span>{' '}
               <span className="normal-case font-normal text-slate-400">(Markdown supported)</span>
@@ -225,9 +238,31 @@ export default function PageEditor({ initialPage }: PageEditorProps) {
               {redirects.length === 0 ? (
                 <p className="text-xs text-slate-500">No redirects</p>
               ) : (
-                <ul className="text-xs text-slate-700 list-disc list-inside">
+                <ul className="text-xs text-slate-700 list-none space-y-2">
                   {redirects.map((r) => (
-                    <li key={r}>/{r}</li>
+                    <li key={r} className="flex items-center justify-between">
+                      <span className="text-slate-700">/{r}</span>
+                      <button
+                        onClick={async () => {
+                          if (!initialPage) return;
+                          if (!confirm(`Remove redirect from /${r} → /${initialPage.slug}?`)) return;
+                          try {
+                            const res = await fetch(`/api/pages/${initialPage.slug}/redirects?from=${encodeURIComponent(r)}`, {
+                              method: 'DELETE',
+                              headers: { 'Content-Type': 'application/json' },
+                            });
+                            if (!res.ok) throw new Error(await res.text());
+                            setRedirects((prev) => prev.filter((x) => x !== r));
+                          } catch (e: any) {
+                            alert('Failed to remove redirect: ' + (e.message || e));
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title={`Remove redirect from /${r}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </li>
                   ))}
                 </ul>
               )}
