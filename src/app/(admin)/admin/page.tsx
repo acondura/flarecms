@@ -223,24 +223,29 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative mb-6 max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          id="page-search"
-          type="text"
-          placeholder="Search pages…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-10 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
-        />
-        <button
-          title="Refresh"
-          onClick={() => loadPages()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-        >
-          <RefreshCw size={16} />
-        </button>
+      {/* Search + Refresh */}
+      <div className="mb-6 flex items-start justify-between">
+        <div className="relative max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            id="page-search"
+            type="text"
+            placeholder="Search pages…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <button
+            title="Refresh"
+            onClick={() => loadPages()}
+            className="p-2 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Table */}
