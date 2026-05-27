@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Search, Edit, Trash2, Eye, Calendar } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, RefreshCw, Calendar } from 'lucide-react';
 
 interface CmsPage {
   slug: string;
@@ -232,8 +232,15 @@ export default function AdminDashboard() {
           placeholder="Search pages…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+          className="w-full pl-9 pr-10 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
         />
+        <button
+          title="Refresh"
+          onClick={() => loadPages()}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+        >
+          <RefreshCw size={16} />
+        </button>
       </div>
 
       {/* Table */}
@@ -270,12 +277,7 @@ export default function AdminDashboard() {
               {filtered.map((page) => (
                 <tr key={page.slug} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-4 font-medium text-slate-900 break-words">
-                    <Link
-                      href={`/admin/edit/${page.slug}`}
-                      className="text-slate-900 hover:underline inline-block"
-                    >
-                      {page.title}
-                    </Link>
+                    <a href={`/${page.slug}`} className="text-slate-900 hover:underline inline-block">{page.title}</a>
                   </td>
                   <td className="px-5 py-4 text-slate-500 font-mono text-xs">
                     /{page.slug}
@@ -290,15 +292,6 @@ export default function AdminDashboard() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2 justify-end">
-                      <a
-                        href={`/${page.slug}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
-                        title="View page"
-                      >
-                        <Eye size={15} />
-                      </a>
                       <Link
                         href={`/admin/edit/${page.slug}`}
                         className="p-1.5 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded transition-colors"
